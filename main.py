@@ -1,15 +1,15 @@
+import bokeh
 import holoviews as hv
+from bokeh.client import push_session
+from bokeh.io import curdoc
+from bokeh.layouts import layout
 from bokeh.models import CheckboxGroup
 
 from bokeh.sampledata.stocks import AAPL, GOOG
 from holoviews import opts
-from holoviews.operation import decimate
-from holoviews.plotting.bokeh.callbacks import LinkCallback
 from holoviews.plotting.links import RangeToolLink
 import pandas as pd
 from holoviews.streams import Stream
-
-from ops import dmate
 
 hv.extension('bokeh')
 renderer = hv.renderer('bokeh')
@@ -27,24 +27,24 @@ stock_symbols = [('aapl', aapl_curve), ('goog', goog_curve)]
 
 def stocks_callback(active):
     print(f"Callback {active}")
-    return hv.Overlay([crv for (sym, crv) in stock_symbols])
+    return hv.Overlay([(crv if i in active else hv.Curve([])) for (i, (sym, crv)) in enumerate(stock_symbols)])
 
 
 def change_active_stocks(attr, old, new):
-    pass
+    chosen_stocks_stream.event(active=new)
 
 
 dmap = hv.DynamicMap(stocks_callback, streams=[chosen_stocks_stream])
 olayed = dmap
-src_crv = hv.Curve(list()).opts(height=200, default_tools=[])
-tgt_crv = hv.Curve(list()).opts(height=400)
-src_olay = hv.Overlay([src_crv, olayed.relabel('')])\
-    .opts(width=800, yaxis=None)\
-    .collate()\
+src_crv = hv.Curve(list(), 'Date', 'Price ($)').opts(height=200, default_tools=[])
+tgt_crv = hv.Curve(list(), 'Date', 'Price ($)').opts(height=400)
+src_olay = hv.Overlay([src_crv, olayed.relabel('')]) \
+    .opts(width=800, yaxis=None) \
+    .collate() \
     .opts(height=200)
-tgt_olay = hv.Overlay([tgt_crv, olayed.relabel('')])\
-    .opts(width=800, labelled=['y'])\
-    .collate()\
+tgt_olay = hv.Overlay([tgt_crv, olayed.relabel('')]) \
+    .opts(width=800) \
+    .collate() \
     .opts(height=400)
 RangeToolLink(src_crv, tgt_crv, axes=['x', 'y'])
 plt = (tgt_olay + src_olay).cols(1)
@@ -53,4 +53,9 @@ plt.opts(opts.Layout(shared_axes=False, merge_tools=False))
 checkbox_group = CheckboxGroup(labels=["AAPL", "GOOG"], active=[0, 1])
 checkbox_group.on_change("active", change_active_stocks)
 
-renderer.server_doc(plt)
+doc = curdoc()
+hvplot = renderer.get_plot(plt, doc) #displayed is the laidout hv
+plot = layout([hvplot.state, checkbox_group])
+doc.add_root(plot)
+
+
