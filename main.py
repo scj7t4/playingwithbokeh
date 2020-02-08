@@ -20,39 +20,34 @@ aapl_curve = hv.Curve(aapl_df, 'Date', ('close', 'Price ($)'))
 goog_curve = hv.Curve(goog_df, 'Date', ('close', 'Price ($)'))
 
 chosen_stocks_stream = Stream.define('Toggle Stocks', active=[0, 1])()
+stock_symbols = [('aapl', aapl_curve), ('goog', goog_curve)]
 
 
-def stocks_callback(active, holder_crv):
+def stocks_callback(idx, active):
     print(f"Callback {active}")
-    src = [('aapl', aapl_curve), ('goog', goog_curve)]
-    d = {k: v for (i, (k, v)) in enumerate(src) if i in active}
-    d['_'] = holder_crv
-    print(f"Plts = {d}")
-    overlay = hv.NdOverlay(d)
 
-    return overlay
-
-
-def layout_cb(active):
-    src_crv = hv.Curve([])
-    tgt_crv = hv.Curve([])
-    tgt = stocks_callback(active, tgt_crv).relabel('').opts(width=800, height=400, labelled=['y'])
-    src = stocks_callback(active, src_crv).relabel('').opts(width=800, height=200, yaxis=None, default_tools=[])
-    RangeToolLink(src_crv, tgt_crv)
-    plt = (tgt + src).cols(1)
-    print(LinkCallback.find_links(plt))
-    plt.opts(opts.Layout(shared_axes=False, merge_tools=False))
-    return plt
+    if idx in active:
+        return stock_symbols[idx][1]
+    return hv.Curve([])
 
 
 def change_active_stocks(attr, old, new):
-    layout_cb(active=new)
+    pass
 
 
-#layout = hv.DynamicMap(layout_cb, streams=[chosen_stocks_stream])
-layout = layout_cb([0, 1])
+dmap = hv.DynamicMap(stocks_callback, kdims=['idx'], streams=[chosen_stocks_stream])
+dmap = dmap.redim.values(idx=list(range(len(stock_symbols))))
+
+olayed = dmap.groupby(dimensions=['idx'], group_type=hv.NdOverlay)
+src_crv = hv.Curve([])
+tgt_crv = hv.Curve([])
+tgt_olay = hv.Overlay([tgt_crv, olayed.relabel('')]).opts(width=800, height=400, labelled=['y']).collate()
+src_olay = hv.Overlay([src_crv, olayed.relabel('')]).opts(width=800, height=200, yaxis=None, default_tools=[]).collate()
+RangeToolLink(src_crv, tgt_crv)
+plt = (tgt_olay + src_olay).cols(1)
+plt.opts(opts.Layout(shared_axes=False, merge_tools=False))
 
 checkbox_group = CheckboxGroup(labels=["AAPL", "GOOG"], active=[0, 1])
 checkbox_group.on_change("active", change_active_stocks)
 
-renderer.server_doc(layout)
+renderer.server_doc(plt)
