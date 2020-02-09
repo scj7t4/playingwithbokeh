@@ -1,14 +1,11 @@
-import bokeh
 import holoviews as hv
-from bokeh.client import push_session
+import pandas as pd
 from bokeh.io import curdoc
 from bokeh.layouts import layout
 from bokeh.models import CheckboxGroup
-
 from bokeh.sampledata.stocks import AAPL, GOOG
 from holoviews import opts
 from holoviews.plotting.links import RangeToolLink
-import pandas as pd
 from holoviews.streams import Stream
 
 hv.extension('bokeh')
@@ -54,8 +51,6 @@ checkbox_group = CheckboxGroup(labels=["AAPL", "GOOG"], active=[0, 1])
 checkbox_group.on_change("active", change_active_stocks)
 
 doc = curdoc()
-hvplot = renderer.get_plot(plt, doc) #displayed is the laidout hv
+hvplot = renderer.get_plot(plt, doc)  # displayed is the laidout hv
 plot = layout([hvplot.state, checkbox_group])
 doc.add_root(plot)
-
-
