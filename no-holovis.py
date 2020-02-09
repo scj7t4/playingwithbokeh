@@ -1,4 +1,5 @@
 import pandas as pd
+from bokeh.events import Reset
 from bokeh.io import curdoc
 from bokeh.layouts import layout
 from bokeh.models import CheckboxGroup, ColumnDataSource, RangeTool, Range1d
@@ -72,16 +73,27 @@ def selection_change(attrname, old, new):
 
 data_sources[0].selected.on_change('indices', selection_change)
 
-# Init based on user selections.
-initial_active = [0, 1]
-change_active_stocks(None, None, initial_active)
-x_range.start = min([x.index.min() for i, x in enumerate(data_frames) if i in initial_active])
-x_range.end = max([x.index.max() for i, x in enumerate(data_frames) if i in initial_active])
-y_range.start = min([x['close'].min() for i, x in enumerate(data_frames) if i in initial_active])
-y_range.end = max([x['close'].max() for i, x in enumerate(data_frames) if i in initial_active])
+
+def do_reset(active_stocks):
+    x_range.start = min([x.index.min() for i, x in enumerate(data_frames) if i in active_stocks])
+    x_range.end = max([x.index.max() for i, x in enumerate(data_frames) if i in active_stocks])
+    y_range.start = min([x['close'].min() for i, x in enumerate(data_frames) if i in active_stocks])
+    y_range.end = max([x['close'].max() for i, x in enumerate(data_frames) if i in active_stocks])
+
 
 checkbox_group = CheckboxGroup(labels=["AAPL", "GOOG"], active=[0, 1])
 checkbox_group.on_change("active", change_active_stocks)
+
+
+def handle_reset(_):
+    print("Trigger reset")
+    do_reset(checkbox_group.active)
+
+
+change_active_stocks(None, None, checkbox_group.active)
+do_reset(checkbox_group.active)
+
+main_plot.on_event(Reset, handle_reset)
 
 doc = curdoc()
 plot = layout([main_plot, sub_plot, checkbox_group])
